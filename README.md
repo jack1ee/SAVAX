@@ -278,3 +278,4 @@ If you use the `EgoMe` dataset, please also cite:
   year={2025}
 }
 ```
+
