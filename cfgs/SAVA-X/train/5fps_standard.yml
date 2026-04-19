@@ -1,0 +1,271 @@
+# ============================================================
+# SAVA-X Standard Config
+# File: cfgs/SAVA-X/standard.yml
+#
+# Goals:
+# 1) Provide a reproducible, fully-commented training config.
+# 2) Use canonical key names (snake_case only).
+# 3) Fill keys required by current train/model/eval code paths.
+# 4) Include freeze strategy and optimizer-group related settings.
+# ============================================================
+
+# -----------------------------
+# A. Run Identity & Reproducibility
+# -----------------------------
+id: savax_standard
+model_type: savax
+task_type: error_detection
+seed: 42
+random_seed: false
+device: cuda
+disable_tqdm: false
+debug: false
+disable_cudnn: 0
+
+# -----------------------------
+# B. I/O Paths (EgoMe)
+# -----------------------------
+save_dir: outputs/savax/standard
+dict_file: data/egome/vocabulary_egome.json
+vocab_size: 4721
+invalid_video_json: []
+
+multi_view: true
+ego_feature_folder: /path/to/egome/Ego/Feature
+exo_feature_folder: /path/to/egome/Exo/Feature
+
+ego_train_caption_file: /path/to/egome/Annotation/train_Ego_cap.json
+exo_train_caption_file: /path/to/egome/Annotation/train_Exo_cap.json
+ego_val_caption_file: /path/to/egome/Annotation/val_Ego_cap.json
+exo_val_caption_file: /path/to/egome/Annotation/val_Exo_cap.json
+
+# Used by eval_utils during validation
+gt_file_for_eval: ['/path/to/egome/Annotation/val_Ego_cap.json']
+gt_file_for_para_eval: ['/path/to/egome/Annotation/val_Ego_para.json']
+
+# -----------------------------
+# C. Feature Loading & Temporal Grid
+# -----------------------------
+visual_feature_type: ['tsp']
+feature_dim: 512
+feature_sample_rate: 1 #Down-sample rate, 2 meams down-sample 2 times(10fps ==> 5fps)
+frame_embedding_num: 200
+data_rescale: 1
+data_rescale_type: longer_uniform
+data_norm: 0
+
+# -----------------------------
+# D. Core Model (PDVC/Deformable DETR Backbone)
+# -----------------------------
+num_queries: 20
+num_classes: 1
+num_feature_levels: 4
+dec_layers: 2
+enc_layers: 2
+nheads: 8
+transformer_ff_dim: 512
+transformer_dropout_prob: 0.1
+with_box_refine: 1
+transformer_input_type: queries
+
+# Base task heads
+max_eseq_length: 20
+share_caption_head: 1
+disable_mid_caption_heads: false
+caption_decoder_type: light
+caption_cost_type: loss
+soft_attention: 1
+cap_nheads: 1
+cap_dec_n_points: 4
+cap_num_feature_levels: 4
+att_hid_size: 512
+input_encoding_size: 512
+rnn_size: 512
+num_layers: 2
+drop_prob: 0.4
+max_caption_len: 30
+wordRNN_input_feats_type: C
+
+# Two-stage/box options retained from your current setup
+fix_xcw: 1
+
+# -----------------------------
+# E. SAVA-X Module Controls
+# -----------------------------
+# E1) Fusion
+fusion_type: cross_attn                 # choices: concat_channel | concat_time | ego_only | cross_attn | cross_deform
+direction: bi                           # bi | exo2ego | ego2exo (used by CrossAttnFusion)
+
+# E2) Adaptive Sampler (AS)
+adapt_sampler: true
+as_n_blocks: 1
+k_ratio: 0.9
+gate_alpha: 0.3
+n_heads: 4                               # custom modules (sampler/view/fusion), not transformer nheads
+
+# Sampler temperature schedule
+tau_start: 1.0
+tau_end: 0.1
+tau_decay: 1.0e-3
+
+# AS regularization
+diversity_coef: 0.0
+div_tau: 0.0
+vicreg_coef: 0.1
+vicreg_var_w: 1.0
+vicreg_cov_w: 1.0
+vicreg_gamma: 0.2
+selent_coef: 1.0e-2
+
+# E3) Scene-adaptive View Embedding (SVE)
+view_embed_type: viewdict               # none | token_type | viewdict
+sve_n_blocks: 1
+view_dropout: 0.0
+num_views: 2
+view_init_std: 0.02
+view_strength: 1.0
+view_strength_start: 0.2
+view_strength_end: 1.0
+view_strength_warmup_epochs: 5
+
+vd_num_tokens: 64
+vd_per_stream: false
+vd_learnable_tau: true
+vd_ffn_mul: 4
+vd_gating: true
+viewdict_div_coef: 0.05
+loss_view_entropy_w: 0.05
+tau_warmup_epochs: 5
+tau_free_after_warmup: true
+
+# Multi-level view injection
+view_inject_multilevel: true
+view_inject_strength: 0.25
+view_inject_stream_id: 0
+
+# E4) Bidirectional Cross-view Fusion (BiX depth)
+bix_n_blocks: 1
+
+# E5) Time positional encoding for fused timeline
+use_time_pe: true
+time_n_freq: 32
+
+# -----------------------------
+# F. Matching & Loss Weights
+# -----------------------------
+# For EgoMe Prior
+avg_fore_num: 4.449235922126858
+mimic_fine_prior: 0.9213
+mimic_overall_prior: 0.7764
+
+set_cost_caption: 0
+set_cost_giou: 4
+set_cost_bbox: 0
+set_cost_class: 2
+set_cost_fine: 0
+cost_alpha: 0.25
+cost_gamma: 2
+
+giou_loss_coef: 4
+bbox_loss_coef: 0
+cls_loss_coef: 2
+count_loss_coef: 2
+caption_loss_coef: 2
+mimic_overall_loss_coef: 1
+mimic_fine_loss_coef: 1
+
+focal_alpha: 0.25
+focal_gamma: 2.0
+lloss_gau_mask: 1
+lloss_beta: 1
+
+# -----------------------------
+# G. Training Policy (Data/Batch/Epoch)
+# -----------------------------
+epoch: 50
+batch_size: 16
+batch_size_for_eval: 16
+nthreads: 1
+
+train_proposal_type: gt
+train_proposal_sample_num: 30
+gt_proposal_sample_num: 10
+sample_method: nearest
+
+# -----------------------------
+# H. Optimizer, Scheduler, Grad Clip
+# -----------------------------
+optimizer_type: adam
+lr: 1.0e-4
+weight_decay: 5.0e-4
+betas: [0.9, 0.999]
+adam_eps: 1.0e-8
+
+# Warmup + cosine (train_SAVAX.py reads these first)
+warmup_ratio: 0.05
+# warmup_steps: null  # optional; if set, overrides warmup_ratio-derived steps
+min_lr_ratio: 0.0
+
+# Legacy decay args kept for compatibility (not primary in current script)
+learning_rate_decay_start: 8
+learning_rate_decay_every: 3
+learning_rate_decay_rate: 0.5
+
+# Gradient clipping
+grad_clip: 100.0
+grad_clip_backbone: 100.0
+grad_clip_sampler: 0.5
+grad_clip_fusion: 1.0
+grad_clip_view: 1.0
+
+# Parameter-group convention in current trainer:
+# [decay, nodecay, fast_decay, fast_nodecay]
+# Note: "fast_*" groups are only populated if parameter names contain "clr_mlp".
+
+# -----------------------------
+# I. Freeze Strategy (important)
+# -----------------------------
+# Optional alternating freeze strategy
+alt_train: false
+alt_start_epoch: 5
+alt_freq: 2
+
+# -----------------------------
+# J. Scheduled Sampling (caption)
+# -----------------------------
+scheduled_sampling_start: -1
+basic_ss_prob: 0
+scheduled_sampling_increase_every: 2
+scheduled_sampling_increase_prob: 0.05
+scheduled_sampling_max_prob: 0.25
+
+# -----------------------------
+# K. Validation / Metric Policy
+# -----------------------------
+# IMPORTANT: use snake_case keys. Avoid legacy dashed keys like num-thresh.
+w_correct: 0.0
+num_thresh: 50
+thresh_sampling: quantile
+fix_fine_thresh: true
+tiou_for_thresh: null
+
+criteria_for_best_ckpt: mimic
+ec_alpha: 1.0
+
+# -----------------------------
+# L. Checkpoint / Resume / Pretrain
+# -----------------------------
+save_all_checkpoint: 0
+save_checkpoint_every: 1
+min_epoch_when_save: -1
+max_es_cnt: 15
+
+start_from: ''
+start_from_mode: last
+pretrain: none
+pretrain_path: ''
+
+# -----------------------------
+# M. Misc Compatibility Keys
+# -----------------------------
+aux_loss: true

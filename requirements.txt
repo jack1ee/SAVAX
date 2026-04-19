@@ -1,0 +1,23 @@
+# Install a CUDA-matched PyTorch/torchvision build first when using GPUs:
+# https://pytorch.org/get-started/locally/
+torch
+torchvision
+opencv-python
+
+colorlog
+lmdb
+matplotlib
+numpy
+PyYAML
+scikit-learn
+scipy
+seaborn
+six
+tensorboardX
+tqdm
+pycocoevalcap
+
+# Runtime note:
+# - Java is required for METEOR/SPICE evaluation.
+# - bert_score and moverscore are optional SODA extras and are not needed by
+#   the default training/evaluation path.
